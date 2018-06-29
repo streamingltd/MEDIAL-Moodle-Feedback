@@ -220,4 +220,15 @@ class assign_feedback_helixfeedback extends assign_feedback_plugin {
         return $this->view($grade) == '';
     }
 
+    /**
+     * Has the plugin form element been modified in the current submission?
+     *
+     * @param stdClass $grade The grade.
+     * @param stdClass $data Form data from the feedback form.
+     * @return boolean - True if the form element has been modified.
+     */
+    public function is_feedback_modified(stdClass $grade, stdClass $data) {
+        return true;
+    }
+
 }
