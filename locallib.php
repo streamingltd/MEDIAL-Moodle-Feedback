@@ -24,10 +24,10 @@
  * @author    Tim Williams (tmw@autotrain.org) for Streaming LTD
  */
 
- defined('MOODLE_INTERNAL') || die();
+defined('MOODLE_INTERNAL') || die();
 
- require_once($CFG->dirroot.'/mod/helixmedia/lib.php');
- require_once($CFG->dirroot.'/mod/helixmedia/locallib.php');
+require_once($CFG->dirroot.'/mod/helixmedia/lib.php');
+require_once($CFG->dirroot.'/mod/helixmedia/locallib.php');
 
 /**
  * Library class for video feedback plugin extending feedback plugin base class
@@ -36,6 +36,9 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class assign_feedback_helixfeedback extends assign_feedback_plugin {
+
+    // Used for group assignments on the submission summary page so we have a unique frame ID
+    private $count = 0;
 
     /**
      * Get the name of the online comment feedback plugin
@@ -76,34 +79,35 @@ class assign_feedback_helixfeedback extends assign_feedback_plugin {
         $mform->addElement('hidden', 'helixfeedback_preid');
         $mform->setType('helixfeedback_preid', PARAM_INT);
 
-        $mform->addElement('hidden', 'helixfeedback_activated');
-        $mform->setType('helixfeedback_activated', PARAM_INT);
+        $thumbparams = array('type' => HML_LAUNCH_FEEDBACK_THUMBNAILS);
+        $params = array('type' => HML_LAUNCH_FEEDBACK, 'userid' => $grade->userid);
 
         if ($gradeid) {
             $feedbackentry = $this->get_feedback_entry($gradeid);
             if ($feedbackentry) {
                 $preid = $feedbackentry->preid;
-                $param = "e_feed=" . $feedbackentry->preid;
+                //$param = "e_feed=" . $feedbackentry->preid;
+                $thumbparams['e_feed'] = $feedbackentry->preid;
+                $params['e_feed'] = $feedbackentry->preid;
                 $mform->setDefault('helixfeedback_preid', $feedbackentry->preid);
             }
         }
 
-        if (!isset($param)) {
+        if (!array_key_exists('e_feed', $params)) {
             $preid = helixmedia_preallocate_id();
-            $param = "n_feed=".$preid."&aid=".$PAGE->cm->id;
+            
+            $thumbparams['n_feed'] = $preid;
+            $params['n_feed'] = $preid;
+            $thumbparams['aid'] = $PAGE->cm->id;
+            $params['aid'] = $PAGE->cm->id;
             $mform->setDefault('helixfeedback_preid', $preid);
         }
 
-        $splitline = false;
-        // Moodle 3.1 and higher.
-        if ($CFG->version >= 2016052300) {
-            $splitline = true;
-        }
+        $output = $PAGE->get_renderer('mod_helixmedia');
+        $disp = new \mod_helixmedia\output\modal($preid, $thumbparams, $params, "moodle-lti-upload-btn.png",
+            get_string('add_feedback', 'assignfeedback_helixfeedback'), false, true, "column");
 
-        $mform->addElement('static', 'helixfeedback_choosemedia', "",
-            helixmedia_get_modal_dialog($preid, "type=".HML_LAUNCH_FEEDBACK_THUMBNAILS."&".$param,
-                "type=".HML_LAUNCH_FEEDBACK."&".$param, "", "", "", "", -1, "true", $splitline));
-
+        $mform->addElement('static', 'helixfeedback_choosemedia', "", $output->render($disp));
         return true;
     }
 
@@ -116,11 +120,12 @@ class assign_feedback_helixfeedback extends assign_feedback_plugin {
      */
     public function save(stdClass $grade, stdClass $data) {
         global $DB;
-        $feedbackentry = $this->get_feedback_entry($grade->id);
 
-        if ($data->helixfeedback_activated != 1) {
+        if (helixmedia_is_preid_empty($data->helixfeedback_preid, $this, $grade->grader)) {
             return true;
         }
+
+        $feedbackentry = $this->get_feedback_entry($grade->id);
 
         if ($feedbackentry) {
             /***Nothing needs to change in the DB for an update since the only change is on the HML server, so just return true***/
@@ -143,21 +148,24 @@ class assign_feedback_helixfeedback extends assign_feedback_plugin {
      * @param bool $showviewlink Set to true to show a link to view the full feedback
      * @return string
      */
-    public function view_summary(stdClass $grade, & $showviewlink) {
-        $showviewlink = true;
+    public function view_summary(stdClass $grade, &$showviewlink) {
+        // We want to show just the link on the grading table to keep things condensed, otherwise the normal graphic button.
+        if (optional_param('action', false, PARAM_TEXT) != 'grading') {
+            return $this->view($grade);
+        }
 
         $feedbackentry = $this->get_feedback_entry($grade->id);
         if ($feedbackentry) {
             global $PAGE;
 
-            $type = HML_LAUNCH_VIEW_FEEDBACK;
-            $thumbtype = HML_LAUNCH_VIEW_FEEDBACK_THUMBNAILS;
+            $extraid = $this->count;
+            $this->count++;
 
-            $param = "e_feed=" . $feedbackentry->preid . "&userid=" . $grade->userid;
-            return helixmedia_get_modal_dialog($feedbackentry->preid,
-                "type=" . $thumbtype . "&" . $param,
-                "type=" . $type . "&" . $param, "margin-left:auto;margin-right:auto;",
-                get_string('view_feedback', 'assignfeedback_helixfeedback'), -1, -1, -1, "false");
+            $params = array('type' => HML_LAUNCH_VIEW_FEEDBACK, 'e_feed' => $feedbackentry->preid, 'userid' => $grade->userid);
+            $output = $PAGE->get_renderer('mod_helixmedia');
+            $disp = new \mod_helixmedia\output\modal($feedbackentry->preid, array(), $params, false,
+                 get_string('view_feedback', 'assignfeedback_helixfeedback'), false, false, 'row', $extraid);
+            return $output->render($disp);
         }
         return '';
     }
@@ -173,14 +181,12 @@ class assign_feedback_helixfeedback extends assign_feedback_plugin {
         if ($feedbackentry) {
             global $PAGE;
 
-            $type = HML_LAUNCH_VIEW_FEEDBACK;
-            $thumbtype = HML_LAUNCH_VIEW_FEEDBACK_THUMBNAILS;
-
-            $param = "e_feed=" . $feedbackentry->preid . "&userid=" . $grade->userid;
-            return helixmedia_get_modal_dialog($feedbackentry->preid,
-                "type=" . $thumbtype . "&".$param,
-                "type=" . $type . "&".$param, "margin-left:auto;margin-right:auto;",
-                "moodle-lti-viewfeed-btn.png", "", "", -1, "false");
+            $thumbparams = array('type' => HML_LAUNCH_VIEW_FEEDBACK_THUMBNAILS, 'e_feed' =>$feedbackentry->preid, 'userid' => $grade->userid);
+            $params = array('type' => HML_LAUNCH_VIEW_FEEDBACK, 'e_feed' => $feedbackentry->preid, 'userid' => $grade->userid);
+            $output = $PAGE->get_renderer('mod_helixmedia');
+            $disp = new \mod_helixmedia\output\modal($feedbackentry->preid, $thumbparams, $params, "moodle-lti-viewfeed-btn.png",
+                 get_string('view_feedback', 'assignfeedback_helixfeedback'), false, false);
+            return $output->render($disp);
         }
         return '';
     }

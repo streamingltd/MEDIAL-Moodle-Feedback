@@ -29,4 +29,5 @@ $string['default_help'] = 'If set, this feedback method will be enabled by defau
 $string['enabled'] = 'Video Feedback';
 $string['enabled_help'] = 'If enabled, the marker can leave video feedback for each submission. ';
 $string['pluginname'] = 'MEDIAL Video Feedback';
-$string['view_feedback'] = 'View Feedback';
+$string['view_feedback'] = 'View Video Feedback';
+$string['add_feedback'] = 'Add Feedback';
