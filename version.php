@@ -25,9 +25,9 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2022012501;
-$plugin->requires  = 2018051700;
+$plugin->version   = 2022062403;
+$plugin->requires  = 2020061500;
 $plugin->component = 'assignfeedback_helixfeedback';
 $plugin->dependencies = array(
-    'mod_helixmedia' => '2022012501'
+    'mod_helixmedia' => '2022062403'
 );

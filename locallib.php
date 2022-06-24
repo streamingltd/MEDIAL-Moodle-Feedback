@@ -104,7 +104,7 @@ class assign_feedback_helixfeedback extends assign_feedback_plugin {
         }
 
         $output = $PAGE->get_renderer('mod_helixmedia');
-        $disp = new \mod_helixmedia\output\modal($preid, $thumbparams, $params, "moodle-lti-upload-btn.png",
+        $disp = new \mod_helixmedia\output\modal($preid, $thumbparams, $params, 'upload',
             get_string('add_feedback', 'assignfeedback_helixfeedback'), false, true, "column");
 
         $mform->addElement('static', 'helixfeedback_choosemedia', "", $output->render($disp));
